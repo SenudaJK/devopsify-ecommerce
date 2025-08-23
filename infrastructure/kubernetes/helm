@@ -1,0 +1,117 @@
+# Helm Chart Structure for E-Commerce App
+
+# Create a directory for the Helm chart
+mkdir -p devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce
+
+# Create the Chart.yaml file
+echo "apiVersion: v2
+name: devopsify-ecommerce
+description: A Helm chart for deploying the DevOpsify E-Commerce application
+version: 0.1.0
+appVersion: 1.0.0
+" > devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/Chart.yaml
+
+# Create the values.yaml file
+echo "replicaCount: 1
+
+image:
+  repository: your-docker-repo/devopsify-ecommerce
+  pullPolicy: IfNotPresent
+  tag: latest
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths: []
+  tls: [] 
+
+resources: {}
+" > devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/values.yaml
+
+# Create the templates directory
+mkdir -p devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/templates
+
+# Create the deployment.yaml file
+echo "apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-frontend
+  labels:
+    app: {{ .Release.Name }}-frontend
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-frontend
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          ports:
+            - containerPort: 80
+" > devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/templates/deployment.yaml
+
+# Create the service.yaml file
+echo "apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-frontend
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 80
+  selector:
+    app: {{ .Release.Name }}-frontend
+" > devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/templates/service.yaml
+
+# Create the ingress.yaml file
+echo "apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-frontend
+  annotations:
+    {{- range $key, $value := .Values.ingress.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  rules:
+    - host: {{ .Values.ingress.hosts | first }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-frontend
+                port:
+                  number: {{ .Values.service.port }}
+" > devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/templates/ingress.yaml
+
+# Create the _helpers.tpl file
+echo "{{/*
+Expand the name of the chart.
+*/}}
+{{- define \"devopsify-ecommerce.fullname\" -}}
+{{- printf \"%s-%s\" .Release.Name .Chart.Name | trunc 63 | trimSuffix \"-\" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified domain name.
+*/}}
+{{- define \"devopsify-ecommerce.domain\" -}}
+{{- printf \"%s.%s\" .Values.ingress.hosts | first .Release.Namespace | quote -}}
+{{- end -}}
+" > devopsify-ecommerce/infrastructure/kubernetes/helm/devopsify-ecommerce/templates/_helpers.tpl
+
+# The Helm chart structure is now ready for the DevOpsify E-Commerce application.

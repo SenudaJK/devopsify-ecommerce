@@ -1,0 +1,25 @@
+{
+  "name": "devopsify-ecommerce-backend",
+  "version": "1.0.0",
+  "description": "Backend for the DevOpsify E-Commerce application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "pg": "^8.7.1",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.7",
+    "eslint": "^7.32.0",
+    "jest": "^27.0.6"
+  },
+  "author": "Your Name",
+  "license": "MIT"
+}

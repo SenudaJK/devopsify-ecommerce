@@ -1,0 +1,46 @@
+# Grafana Dashboard Configuration
+
+apiVersion: 1
+
+providers:
+  - name: 'Default'
+    type: file
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards/default
+
+# Sample Dashboard Configuration
+dashboard:
+  title: 'E-Commerce Application Metrics'
+  panels:
+    - title: 'API Response Times'
+      type: graph
+      targets:
+        - target: 'avg(rate(http_request_duration_seconds_sum[5m]))'
+      xaxis:
+        mode: time
+      yaxis:
+        format: seconds
+
+    - title: 'Database Connections'
+      type: graph
+      targets:
+        - target: 'sum(rate(postgresql_connections[5m]))'
+      xaxis:
+        mode: time
+      yaxis:
+        format: short
+
+    - title: 'Error Logs'
+      type: table
+      targets:
+        - target: 'count_over_time({app="backend", level="error"}[5m])'
+      columns:
+        - text: 'Timestamp'
+          value: 'timestamp'
+        - text: 'Error Message'
+          value: 'message'

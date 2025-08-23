@@ -1,0 +1,183 @@
+# Kubernetes Manifests for DevOpsify E-Commerce App
+
+This directory will contain the necessary Kubernetes manifest files to deploy the frontend, backend, and database components of the e-commerce application. Below are the sample contents for the Kubernetes manifests.
+
+### 1. frontend-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: devopsify-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devopsify-frontend
+  template:
+    metadata:
+      labels:
+        app: devopsify-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: <your-dockerhub-username>/devopsify-frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: API_URL
+          value: "http://backend:5000"
+
+---
+
+### 2. frontend-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 3000
+  selector:
+    app: devopsify-frontend
+
+---
+
+### 3. backend-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: devopsify-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devopsify-backend
+  template:
+    metadata:
+      labels:
+        app: devopsify-backend
+    spec:
+      containers:
+      - name: backend
+        image: <your-dockerhub-username>/devopsify-backend:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DATABASE_URL
+          value: "postgres://<username>:<password>@postgresql:5432/devopsify"
+
+---
+
+### 4. backend-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  ports:
+  - port: 5000
+    targetPort: 5000
+  selector:
+    app: devopsify-backend
+
+---
+
+### 5. postgresql-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  labels:
+    app: devopsify-postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-postgresql
+  template:
+    metadata:
+      labels:
+        app: devopsify-postgresql
+    spec:
+      containers:
+      - name: postgresql
+        image: postgres:latest
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          value: "<username>"
+        - name: POSTGRES_PASSWORD
+          value: "<password>"
+        - name: POSTGRES_DB
+          value: "devopsify"
+
+---
+
+### 6. postgresql-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  ports:
+  - port: 5432
+    targetPort: 5432
+  selector:
+    app: devopsify-postgresql
+
+---
+
+### 7. redis-deployment.yaml (Optional)
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: devopsify-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-redis
+  template:
+    metadata:
+      labels:
+        app: devopsify-redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:latest
+        ports:
+        - containerPort: 6379
+
+---
+
+### 8. redis-service.yaml (Optional)
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  ports:
+  - port: 6379
+    targetPort: 6379
+  selector:
+    app: devopsify-redis
+
+---
+
+These manifest files will allow you to deploy the frontend, backend, PostgreSQL, and optionally Redis services to your Kubernetes cluster. Make sure to replace `<your-dockerhub-username>`, `<username>`, and `<password>` with your actual values.

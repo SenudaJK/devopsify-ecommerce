@@ -1,0 +1,26 @@
+# Prometheus Configuration File
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'frontend'
+    static_configs:
+      - targets: ['frontend-service:3000']
+
+  - job_name: 'backend'
+    static_configs:
+      - targets: ['backend-service:4000']
+
+  - job_name: 'database'
+    static_configs:
+      - targets: ['database-service:5432']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - "alert.rules.yml"
