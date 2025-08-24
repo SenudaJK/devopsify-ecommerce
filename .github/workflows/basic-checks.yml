@@ -28,7 +28,7 @@ jobs:
         test -f README.md && echo "✅ README.md exists" || echo "⚠️ README.md missing"
         echo "Basic structure validation completed"
 
-security-scan:
+  security-scan:
     runs-on: ubuntu-latest
     name: Security Scan
     
