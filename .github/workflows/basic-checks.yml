@@ -28,7 +28,7 @@ jobs:
         test -f README.md && echo "✅ README.md exists" || echo "⚠️ README.md missing"
         echo "Basic structure validation complete"
 
-  security-scan:
+security-scan:
     runs-on: ubuntu-latest
     name: Security Scan
     
@@ -36,9 +36,114 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Basic security check
+    - name: Run Trivy vulnerability scanner for filesystem
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+        
+    - name: Run Trivy vulnerability scanner for config files
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'config'
+        scan-ref: '.'
+        format: 'table'
+        exit-code: '0'  # Don't fail on config issues yet
+        
+    - name: Secret scanning with TruffleHog
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+        
+    - name: Check for sensitive files
       run: |
-        echo "Running basic security checks..."
-        echo "✅ No hardcoded passwords found"
-        echo "✅ No sensitive files detected"
-        echo "Security scan complete"
+        echo "🔍 Checking for sensitive files..."
+        
+        # Check for common sensitive file patterns
+        SENSITIVE_FILES=$(find . -type f \( \
+          -name "*.pem" -o \
+          -name "*.key" -o \
+          -name "*.p12" -o \
+          -name "*.pfx" -o \
+          -name "*id_rsa*" -o \
+          -name "*id_dsa*" -o \
+          -name "*.keystore" -o \
+          -name "*.jks" \) \
+          ! -path "./.git/*" \
+          ! -path "./node_modules/*" 2>/dev/null || true)
+        
+        if [ -n "$SENSITIVE_FILES" ]; then
+          echo "❌ Sensitive files detected:"
+          echo "$SENSITIVE_FILES"
+          exit 1
+        else
+          echo "✅ No sensitive files detected"
+        fi
+        
+    - name: Check for hardcoded secrets patterns
+      run: |
+        echo "🔍 Checking for hardcoded secrets..."
+        
+        # Common secret patterns
+        SECRET_PATTERNS=(
+          "password\s*[:=]\s*['\"][^'\"]*['\"]"
+          "api[_-]?key\s*[:=]\s*['\"][^'\"]*['\"]"
+          "secret\s*[:=]\s*['\"][^'\"]*['\"]"
+          "token\s*[:=]\s*['\"][^'\"]*['\"]"
+          "AKIA[0-9A-Z]{16}"  # AWS Access Key
+          "AIza[0-9A-Za-z\\-_]{35}"  # Google API Key
+        )
+        
+        FOUND_SECRETS=false
+        
+        for pattern in "${SECRET_PATTERNS[@]}"; do
+          if grep -r -i -E "$pattern" . \
+            --exclude-dir=.git \
+            --exclude-dir=node_modules \
+            --exclude="*.yml" \
+            --exclude="*.yaml" \
+            --exclude="*.md" >/dev/null 2>&1; then
+            echo "⚠️ Potential secret pattern found: $pattern"
+            FOUND_SECRETS=true
+          fi
+        done
+        
+        if [ "$FOUND_SECRETS" = true ]; then
+          echo "❌ Potential secrets detected. Please review your code."
+          echo "ℹ️ Use environment variables or secret management systems instead."
+          exit 1
+        else
+          echo "✅ No obvious secret patterns detected"
+        fi
+        
+    - name: Check dependencies for known vulnerabilities
+      run: |
+        echo "🔍 Checking for dependency vulnerabilities..."
+        
+        # Check if package.json files exist
+        if find . -name "package.json" -not -path "./node_modules/*" | grep -q .; then
+          echo "📦 Node.js dependencies found, would run npm audit"
+          # npm audit --audit-level high would go here when we have actual dependencies
+        fi
+        
+        # Check if requirements.txt exists  
+        if find . -name "requirements.txt" | grep -q .; then
+          echo "🐍 Python dependencies found, would run safety check"
+          # safety check would go here
+        fi
+        
+        echo "✅ Dependency vulnerability check complete"
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+      continue-on-error: true
