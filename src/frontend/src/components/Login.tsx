@@ -11,15 +11,15 @@ import {
   Tabs,
   Grid,
   Divider,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
 import {
   Person,
   PersonAdd,
   Visibility,
   VisibilityOff,
-  IconButton,
-  InputAdornment,
-} from '@mui/material';
+} from '@mui/icons-material';
 
 interface User {
   id: string;
