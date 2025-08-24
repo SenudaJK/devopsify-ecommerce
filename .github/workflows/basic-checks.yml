@@ -26,7 +26,7 @@ jobs:
         echo "Checking project structure..."
         test -d infrastructure && echo "✅ infrastructure directory exists" || echo "⚠️ infrastructure directory missing"
         test -f README.md && echo "✅ README.md exists" || echo "⚠️ README.md missing"
-        echo "Basic structure validation complete"
+        echo "Basic structure validation completed"
 
 security-scan:
     runs-on: ubuntu-latest
