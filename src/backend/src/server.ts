@@ -21,7 +21,7 @@ import { notFound } from './middleware/notFound';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Security middleware
 app.use(helmet());
@@ -87,15 +87,18 @@ app.use(errorHandler);
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/devopsify-ecommerce';
+    console.log('Attempting to connect to MongoDB...');
     
     await mongoose.connect(mongoURI, {
-      // Remove deprecated options
+      serverSelectionTimeoutMS: 5000, // 5 second timeout
     });
     
     console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
+    return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    process.exit(1);
+    console.warn('⚠️  MongoDB connection failed (running in fallback mode):', (error as Error).message);
+    console.log('🔄 API will use mock data until database is available');
+    return false;
   }
 };
 
@@ -115,19 +118,32 @@ process.on('SIGINT', async () => {
 // Start server
 const startServer = async () => {
   try {
-    // Connect to database first
-    await connectDB();
+    console.log('🚀 Starting DevOpsify E-Commerce API Server...');
     
-    // Start the server
-    app.listen(PORT, () => {
+    // Try to connect to database (graceful fallback if not available)
+    const dbConnected = await connectDB();
+    
+    // Start the server regardless of database connection
+    const server = app.listen(PORT, () => {
       console.log(`
 🚀 DevOpsify E-Commerce API Server Running
 📍 Environment: ${process.env.NODE_ENV || 'development'}
 🌐 Port: ${PORT}
 📊 Health Check: http://localhost:${PORT}/health
 📚 API Docs: http://localhost:${PORT}/api
+💾 Database: ${dbConnected ? 'Connected' : 'Mock Mode'}
       `);
     });
+
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use. Please choose a different port.`);
+      } else {
+        console.error('❌ Server error:', error);
+      }
+      process.exit(1);
+    });
+
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
