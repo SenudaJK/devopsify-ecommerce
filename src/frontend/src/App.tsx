@@ -16,10 +16,10 @@ import {
 } from '@mui/icons-material';
 
 // Components
-import ProductList from './components/ProductList';
-import Cart from './components/Cart';
-import Login from './components/Login';
-import Navbar from './components/Navbar';
+import ProductList from './components/ProductList.tsx';
+import Cart from './components/Cart.tsx';
+import Login from './components/Login.tsx';
+import Navbar from './components/Navbar.tsx';
 
 // Types
 export interface Product {
