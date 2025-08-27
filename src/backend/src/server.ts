@@ -2,20 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import compression from 'compression';
-import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import mongoose from 'mongoose';
+import { connectDatabase, disconnectDatabase, checkDatabaseHealth } from './config/database';
 
-// Routes
+// Import routes
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
-import cartRoutes from './routes/cart';
 import userRoutes from './routes/users';
-
-// Middleware
-import { errorHandler } from './middleware/errorHandler';
-import { notFound } from './middleware/notFound';
+import cartRoutes from './routes/cart';
 
 // Load environment variables
 dotenv.config();
@@ -25,134 +19,96 @@ const PORT = process.env.PORT || 5001;
 
 // Security middleware
 app.use(helmet());
-app.use(compression());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use('/api/', limiter);
-
-// CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true
 }));
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 // Logging
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(morgan('combined'));
+
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const dbHealth = await checkDatabaseHealth();
+  
   res.status(200).json({
-    status: 'ok',
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0',
+    database: {
+      connected: dbHealth,
+      type: process.env.USE_MOCK_DATA === 'true' ? 'mock' : 'mongodb'
+    },
+    version: '1.0.0'
   });
 });
 
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/cart', cartRoutes);
 
-// Root endpoint
+// Default route
 app.get('/', (req, res) => {
   res.json({
-    message: 'DevOpsify E-Commerce API',
+    message: '🚀 DevOpsify E-commerce API',
     version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth',
-      products: '/api/products',
-      cart: '/api/cart',
-      users: '/api/users',
-    },
+    environment: process.env.NODE_ENV || 'development',
+    documentation: '/api/docs'
   });
 });
 
-// Error handling middleware
-app.use(notFound);
-app.use(errorHandler);
-
-// Database connection
-const connectDB = async () => {
-  try {
-    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/devopsify-ecommerce';
-    console.log('Attempting to connect to MongoDB...');
-    
-    await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // 5 second timeout
-    });
-    
-    console.log(`✅ MongoDB Connected: ${mongoose.connection.host}`);
-    return true;
-  } catch (error) {
-    console.warn('⚠️  MongoDB connection failed (running in fallback mode):', (error as Error).message);
-    console.log('🔄 API will use mock data until database is available');
-    return false;
-  }
-};
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
-  await mongoose.connection.close();
-  process.exit(0);
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: 'Endpoint not found',
+    message: `Cannot ${req.method} ${req.originalUrl}`
+  });
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received. Shutting down gracefully...');
-  await mongoose.connection.close();
-  process.exit(0);
+// Global error handler
+app.use((error: any, req: any, res: any, next: any) => {
+  console.error('❌ Server Error:', error);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  });
 });
 
 // Start server
 const startServer = async () => {
   try {
-    console.log('🚀 Starting DevOpsify E-Commerce API Server...');
+    // Connect to database
+    await connectDatabase();
     
-    // Try to connect to database (graceful fallback if not available)
-    const dbConnected = await connectDB();
-    
-    // Start the server regardless of database connection
-    const server = app.listen(PORT, () => {
-      console.log(`
-🚀 DevOpsify E-Commerce API Server Running
-📍 Environment: ${process.env.NODE_ENV || 'development'}
-🌐 Port: ${PORT}
-📊 Health Check: http://localhost:${PORT}/health
-📚 API Docs: http://localhost:${PORT}/api
-💾 Database: ${dbConnected ? 'Connected' : 'Mock Mode'}
-      `);
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+      console.log(`🔗 API base: http://localhost:${PORT}/api`);
     });
-
-    server.on('error', (error: any) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use. Please choose a different port.`);
-      } else {
-        console.error('❌ Server error:', error);
-      }
-      process.exit(1);
-    });
-
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
 
-// Only start server if this file is run directly
-if (require.main === module) {
-  startServer();
-}
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🛑 Received SIGINT. Graceful shutdown...');
+  await disconnectDatabase();
+  process.exit(0);
+});
 
-export default app;
+process.on('SIGTERM', async () => {
+  console.log('\n🛑 Received SIGTERM. Graceful shutdown...');
+  await disconnectDatabase();
+  process.exit(0);
+});
+
+startServer();
