@@ -1,19 +1,9 @@
 import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import {
-  AppBar,
-  Toolbar,
-  Typography,
   Container,
-  Badge,
-  IconButton,
   Box,
 } from '@mui/material';
-import {
-  ShoppingCart,
-  Store,
-  Person,
-} from '@mui/icons-material';
 
 // Components
 import ProductList from './components/ProductList';
