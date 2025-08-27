@@ -1,47 +1,49 @@
-# name: Continuous Deployment
+name: Continuous Deployment
 
-# on:
-#   push:
-#     branches:
-#       - main
-#       - dev
+on:
+  push:
+    branches:
+      - main
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-#       - name: Set up QEMU
-#         uses: docker/setup-qemu-action@v1
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
 
-#       - name: Set up Docker Buildx
-#         uses: docker/setup-buildx-action@v1
+      - name: Configure Kubernetes context
+        run: |
+          # This would typically configure your cluster context
+          # Example for different cloud providers:
+          # AWS: aws eks update-kubeconfig --name your-cluster-name
+          # GCP: gcloud container clusters get-credentials your-cluster-name
+          # Azure: az aks get-credentials --resource-group your-rg --name your-cluster-name
+          echo "Configure your cluster context here"
 
-#       - name: Log in to Docker Hub
-#         uses: docker/login-action@v1
-#         with:
-#           username: ${{ secrets.DOCKER_USERNAME }}
-#           password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image tags in manifests with the latest built images
+          sed -i 's|ghcr.io/.*/devopsify-backend:.*|ghcr.io/${{ github.repository_owner }}/devopsify-backend:${{ github.sha }}|g' infrastructure/kubernetes/manifests-yaml/*.yaml
+          sed -i 's|ghcr.io/.*/devopsify-frontend:.*|ghcr.io/${{ github.repository_owner }}/devopsify-frontend:${{ github.sha }}|g' infrastructure/kubernetes/manifests-yaml/*.yaml
+          
+          # Apply Kubernetes manifests
+          kubectl apply -f infrastructure/kubernetes/manifests-yaml/
 
-#       - name: Build and push Docker images
-#         uses: docker/build-push-action@v2
-#         with:
-#           context: .
-#           push: true
-#           tags: your-dockerhub-username/devopsify-ecommerce:latest
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/devopsify-backend
+          kubectl rollout status deployment/devopsify-frontend
+          kubectl get pods -l app=devopsify
 
-#       - name: Set up kubectl
-#         uses: azure/setup-kubectl@v1
-#         with:
-#           version: 'latest'
-
-#       - name: Deploy to Kubernetes
-#         run: |
-#           kubectl apply -f infrastructure/kubernetes/manifests/your-app-deployment.yaml
-#           kubectl apply -f infrastructure/kubernetes/manifests/your-app-service.yaml
-
-#       - name: Notify deployment success
-#         run: echo "Deployment to Kubernetes was successful!"
+      - name: Notify deployment success
+        run: |
+          echo "🚀 Deployment to Kubernetes was successful!"
+          echo "Backend image: ghcr.io/${{ github.repository_owner }}/devopsify-backend:${{ github.sha }}"
+          echo "Frontend image: ghcr.io/${{ github.repository_owner }}/devopsify-frontend:${{ github.sha }}"
