@@ -1,0 +1,89 @@
+@startuml DevOpsify Network Architecture
+
+!define CLOUD_COLOR #E3F2FD
+!define SUBNET_COLOR #E8F5E8  
+!define POD_COLOR #FFF3E0
+!define SERVICE_COLOR #F3E5F5
+
+title DevOpsify E-Commerce - Kubernetes Network Architecture
+
+' External Network
+cloud "Internet" as internet #CLOUD_COLOR
+cloud "GitHub Container Registry\nghcr.io" as registry #CLOUD_COLOR
+
+' Kubernetes Cluster
+package "Kubernetes Cluster" {
+    
+    ' Namespaces
+    package "devopsify namespace" as devopsify_ns #SUBNET_COLOR {
+        
+        ' Frontend Subnet
+        package "Frontend Subnet\n10.244.1.0/24" as frontend_subnet #POD_COLOR {
+            rectangle "frontend-pod-1\n10.244.1.10:80" as frontend1 #PRIMARY
+            rectangle "frontend-pod-2\n10.244.1.11:80" as frontend2 #PRIMARY
+            rectangle "frontend-service\n10.96.1.10:80\n(LoadBalancer)" as frontend_svc #SERVICE_COLOR
+        }
+        
+        ' Backend Subnet  
+        package "Backend Subnet\n10.244.2.0/24" as backend_subnet #POD_COLOR {
+            rectangle "backend-pod-1\n10.244.2.10:5001" as backend1 #SUCCESS
+            rectangle "backend-pod-2\n10.244.2.11:5001" as backend2 #SUCCESS
+            rectangle "backend-service\n10.96.2.10:5001\n(ClusterIP)" as backend_svc #SERVICE_COLOR
+        }
+        
+        ' Database Subnet
+        package "Database Subnet\n10.244.3.0/24" as db_subnet #POD_COLOR {
+            rectangle "mongodb-pod-1\n10.244.3.10:27017" as mongodb1 #DANGER
+            rectangle "mongodb-service\n10.96.3.10:27017\n(ClusterIP)" as mongodb_svc #SERVICE_COLOR
+            rectangle "mongodb-pv\n(Persistent Volume)" as pv #DANGER
+        }
+    }
+    
+    ' System Namespaces
+    package "kube-system namespace" as kube_system #SUBNET_COLOR {
+        rectangle "ingress-controller\n(External Access)" as ingress #00BCD4
+        rectangle "kube-dns\n(Service Discovery)" as dns #00BCD4
+    }
+}
+
+' External Network Connections
+internet --> ingress : External Traffic\nHTTPS/HTTP
+ingress --> frontend_svc : Route to Frontend\nPort 80
+
+' Service to Pod Connections
+frontend_svc --> frontend1 : Load Balance
+frontend_svc --> frontend2 : Load Balance
+
+' Inter-Service Communication
+frontend1 --> backend_svc : API Calls\n/api/* → :5001
+frontend2 --> backend_svc : API Calls\n/api/* → :5001
+
+backend_svc --> backend1 : Route Requests
+backend_svc --> backend2 : Route Requests
+
+backend1 --> mongodb_svc : Database Queries\nPort 27017
+backend2 --> mongodb_svc : Database Queries\nPort 27017
+
+mongodb_svc --> mongodb1 : Database Connection
+mongodb1 --> pv : Data Storage
+
+' Container Registry
+registry --> frontend1 : Pull Images
+registry --> frontend2 : Pull Images  
+registry --> backend1 : Pull Images
+registry --> backend2 : Pull Images
+registry --> mongodb1 : Pull Images
+
+' Service Discovery
+dns --> frontend_svc : DNS Resolution
+dns --> backend_svc : DNS Resolution  
+dns --> mongodb_svc : DNS Resolution
+
+' Network Policy Notes
+note top of frontend_subnet : Frontend Network Policy\n- Ingress: Allow from Internet\n- Egress: Allow to Backend\n- Port: 80 (HTTP)
+
+note top of backend_subnet : Backend Network Policy\n- Ingress: Allow from Frontend\n- Egress: Allow to Database\n- Port: 5001 (HTTP)\n- Health Check: /health
+
+note top of db_subnet : Database Network Policy\n- Ingress: Allow from Backend only\n- Egress: Restricted\n- Port: 27017 (MongoDB)\n- Auth: Required
+
+@enduml

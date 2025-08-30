@@ -1,0 +1,155 @@
+@startuml DevOpsify Infrastructure Architecture
+
+!define AZURE_COLOR #0078D4
+!define K8S_COLOR #326CE5
+!define DOCKER_COLOR #2496ED
+!define GITHUB_COLOR #181717
+
+title DevOpsify E-Commerce - Azure Infrastructure & Deployment Architecture
+
+' Azure Cloud Provider
+package "Microsoft Azure" #AZURE_COLOR {
+    
+    ' Resource Group
+    package "Resource Group: devopsify-rg" {
+        
+        ' Virtual Network and Networking
+        package "Virtual Network (VNet)\n10.0.0.0/16\nLocation: East US" {
+            
+            ' Public Subnets
+            package "Public Subnet\n10.0.1.0/24" {
+                rectangle "Azure Load Balancer\n(Standard SKU)" as alb #AZURE_COLOR
+                rectangle "NAT Gateway" as nat #AZURE_COLOR
+                rectangle "Public IP" as public_ip #AZURE_COLOR
+            }
+            
+            ' AKS Subnet
+            package "AKS Subnet\n10.0.10.0/24" {
+                rectangle "AKS Cluster\n(devopsify-aks)\nKubernetes 1.28" as aks_cluster #K8S_COLOR
+                
+                package "Node Pool 1\nStandard_D2s_v3" {
+                    rectangle "AKS Node 1\nVM: Standard_D2s_v3\n2 vCPUs, 8GB RAM" as node1 #K8S_COLOR
+                    rectangle "Frontend Pods" as frontend_pods1 #DOCKER_COLOR
+                    rectangle "Backend Pods" as backend_pods1 #DOCKER_COLOR
+                }
+                
+                package "Node Pool 2\nStandard_D2s_v3" {
+                    rectangle "AKS Node 2\nVM: Standard_D2s_v3\n2 vCPUs, 8GB RAM" as node2 #K8S_COLOR
+                    rectangle "Frontend Pods" as frontend_pods2 #DOCKER_COLOR
+                    rectangle "Backend Pods" as backend_pods2 #DOCKER_COLOR
+                }
+            }
+            
+            ' Database Subnet
+            package "Database Subnet\n10.0.20.0/24" {
+                rectangle "MongoDB Pod\nAzure Disk Storage\nPremium SSD 100GB" as mongodb #DANGER
+            }
+            
+            ' Management Subnet  
+            package "Management Subnet\n10.0.30.0/24" {
+                rectangle "Azure Container Registry\n(ACR)\ndevopsifyacr.azurecr.io" as acr #AZURE_COLOR
+                rectangle "Azure Key Vault\n(Secrets Management)" as keyvault #AZURE_COLOR
+            }
+        }
+        
+        ' Storage Account
+        package "Storage Account" {
+            rectangle "Azure Blob Storage\n(Application Logs)" as blob_storage #AZURE_COLOR
+            rectangle "Azure Files\n(Persistent Volumes)" as azure_files #AZURE_COLOR
+        }
+    }
+}
+}
+
+' External Services
+package "External Services" #GITHUB_COLOR {
+    rectangle "GitHub\nSource Code Repository" as github #GITHUB_COLOR
+    rectangle "GitHub Actions\nCI/CD Pipeline" as github_actions #GITHUB_COLOR
+    rectangle "GitHub Container Registry\nghcr.io (Primary)" as ghcr #GITHUB_COLOR
+}
+
+' Azure DevOps Integration (Optional)
+package "Azure DevOps (Alternative)" #AZURE_COLOR {
+    rectangle "Azure DevOps\nBoards, Repos, Pipelines" as azure_devops #AZURE_COLOR
+    rectangle "Azure Pipelines\nCI/CD Alternative" as azure_pipelines #AZURE_COLOR
+}
+
+' Monitoring & Observability
+package "Azure Monitoring Stack" #689F38 {
+    rectangle "Azure Monitor\nMetrics & Logs" as azure_monitor #689F38
+    rectangle "Application Insights\nAPM & Tracing" as app_insights #689F38
+    rectangle "Log Analytics Workspace\nCentralized Logging" as log_analytics #689F38
+}
+
+' User Traffic Flow
+actor "End Users" as users
+users --> public_ip : HTTPS Traffic
+public_ip --> alb : Route Traffic
+alb --> node1 : Distribute Load
+alb --> node2 : Distribute Load
+
+' Pod Communication
+frontend_pods1 --> backend_pods1 : API Calls
+frontend_pods1 --> backend_pods2 : API Calls
+frontend_pods2 --> backend_pods1 : API Calls  
+frontend_pods2 --> backend_pods2 : API Calls
+
+backend_pods1 --> mongodb : Database Queries
+backend_pods2 --> mongodb : Database Queries
+
+' Internet Access for Pods
+frontend_pods1 --> nat : External API Calls
+frontend_pods2 --> nat : External API Calls
+backend_pods1 --> nat : External Services
+backend_pods2 --> nat : External Services
+
+' CI/CD Flow
+github --> github_actions : Code Push
+github_actions --> ghcr : Build & Push Images (Primary)
+github_actions --> acr : Push to Azure ACR (Secondary)
+acr --> node1 : Pull Images
+acr --> node2 : Pull Images
+ghcr --> node1 : Pull Images (Fallback)
+ghcr --> node2 : Pull Images (Fallback)
+
+' Azure DevOps Alternative
+azure_devops --> azure_pipelines : Alternative CI/CD
+azure_pipelines --> acr : Build & Push to ACR
+
+' AKS Management
+aks_cluster --> node1 : Manage Workloads
+aks_cluster --> node2 : Manage Workloads
+aks_cluster --> mongodb : Database Management
+
+' Security & Secrets
+keyvault --> aks_cluster : Inject Secrets
+keyvault --> mongodb : Database Credentials
+
+' Storage Integration
+mongodb --> azure_files : Persistent Storage
+frontend_pods1 --> blob_storage : Application Logs
+frontend_pods2 --> blob_storage : Application Logs
+backend_pods1 --> blob_storage : Application Logs
+backend_pods2 --> blob_storage : Application Logs
+
+' Monitoring Data Flow
+frontend_pods1 --> azure_monitor : Metrics & Logs
+frontend_pods2 --> azure_monitor : Metrics & Logs
+backend_pods1 --> azure_monitor : Metrics & Logs
+backend_pods2 --> azure_monitor : Metrics & Logs
+mongodb --> azure_monitor : Database Metrics
+azure_monitor --> app_insights : Application Performance
+azure_monitor --> log_analytics : Centralized Logs
+
+' Security & Access
+note right of public_ip : Network Security Group:\n- HTTP: 80\n- HTTPS: 443\n- SSH: 22 (Admin only)\n- Management: 443
+
+note right of node1 : VM Size: Standard_D2s_v3\n- vCPUs: 2\n- Memory: 8 GiB\n- Network: Accelerated\n- Temp Storage: 16 GB SSD
+
+note bottom of mongodb : Azure Disk Storage:\n- Type: Premium SSD\n- Size: 100 GB\n- IOPS: 500\n- Backup: Azure Backup
+
+note top of aks_cluster : AKS Configuration:\n- Kubernetes Version: 1.28+\n- Auto-scaling: Enabled\n- RBAC: Azure AD Integration\n- Network Policy: Calico
+
+note top of acr : Container Registry:\n- SKU: Standard\n- Geo-replication: Enabled\n- Vulnerability Scanning: Enabled\n- Webhook: GitHub Actions
+
+@enduml
