@@ -69,14 +69,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Convert repository owner to lowercase
+        id: lowercase
+        run: echo "repository_owner_lowercase=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: ./src/backend
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/devopsify-backend:latest
-            ghcr.io/${{ github.repository_owner }}/devopsify-backend:${{ github.sha }}
+            ghcr.io/${{ steps.lowercase.outputs.repository_owner_lowercase }}/devopsify-backend:latest
+            ghcr.io/${{ steps.lowercase.outputs.repository_owner_lowercase }}/devopsify-backend:${{ github.sha }}
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
@@ -84,5 +88,5 @@ jobs:
           context: ./src/frontend
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/devopsify-frontend:latest
-            ghcr.io/${{ github.repository_owner }}/devopsify-frontend:${{ github.sha }}
+            ghcr.io/${{ steps.lowercase.outputs.repository_owner_lowercase }}/devopsify-frontend:latest
+            ghcr.io/${{ steps.lowercase.outputs.repository_owner_lowercase }}/devopsify-frontend:${{ github.sha }}
