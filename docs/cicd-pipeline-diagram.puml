@@ -1,0 +1,111 @@
+@startuml DevOpsify CI/CD Pipeline
+
+!define DEV_COLOR #4CAF50
+!define STAGING_COLOR #FF9800  
+!define PROD_COLOR #F44336
+!define CICD_COLOR #2196F3
+
+title DevOpsify E-Commerce - CI/CD Pipeline Architecture
+
+' Development Environment
+package "Development Environment" #DEV_COLOR {
+    actor Developer as dev
+    rectangle "Local Development\nDocker Compose\n- Frontend: localhost:3000\n- Backend: localhost:5001\n- MongoDB: localhost:27017" as local #DEV_COLOR
+    rectangle "Feature Branch\n(feature/*)" as feature_branch #DEV_COLOR
+}
+
+' Source Control
+package "Source Control (GitHub)" #GITHUB_COLOR {
+    rectangle "Main Branch\n(Production Ready)" as main_branch #PROD_COLOR
+    rectangle "Dev Branch\n(Integration)" as dev_branch #STAGING_COLOR
+    rectangle "Pull Requests\n(Code Review)" as pr #CICD_COLOR
+}
+
+' CI Pipeline
+package "Continuous Integration" #CICD_COLOR {
+    rectangle "GitHub Actions CI\n(Triggered on Push)" as ci_trigger #CICD_COLOR
+    
+    package "CI Jobs" {
+        rectangle "Test Job\n- npm ci (Frontend)\n- npm run build\n- npm ci (Backend)\n- npm test" as test_job #CICD_COLOR
+        
+        rectangle "Build Images Job\n- Docker build\n- Push to GHCR\n- Tag with SHA" as build_job #CICD_COLOR
+    }
+    
+    rectangle "GitHub Container Registry\nghcr.io/senudajk/\n- devopsify-frontend:latest\n- devopsify-frontend:sha\n- devopsify-backend:latest\n- devopsify-backend:sha" as ghcr #CICD_COLOR
+}
+
+' CD Pipeline  
+package "Continuous Deployment" #PROD_COLOR {
+    rectangle "GitHub Actions CD\n(Triggered on Main Push)" as cd_trigger #PROD_COLOR
+    
+    package "Deployment Stages" {
+        rectangle "1. Update Manifests\n- Replace image tags\n- Set SHA versions" as update_manifests #PROD_COLOR
+        
+        rectangle "2. Deploy to K8s\n- kubectl apply\n- Rolling update" as deploy_k8s #PROD_COLOR
+        
+        rectangle "3. Verify Deployment\n- Health checks\n- Rollout status" as verify_deploy #PROD_COLOR
+    }
+}
+
+' Environments
+package "Target Environments" #AWS_COLOR {
+    
+    package "Staging Environment (Optional)" #STAGING_COLOR {
+        rectangle "Kubernetes Cluster\nNamespace: devopsify-staging\n- Smaller resources\n- Test data" as staging_k8s #STAGING_COLOR
+    }
+    
+    package "Production Environment" #PROD_COLOR {
+        rectangle "Kubernetes Cluster\nNamespace: devopsify\n- Full resources\n- Production data\n- Load balancer" as prod_k8s #PROD_COLOR
+        
+        rectangle "Production Services\n- Frontend (2 replicas)\n- Backend (2 replicas) \n- MongoDB (1 replica)\n- Persistent storage" as prod_services #PROD_COLOR
+    }
+}
+
+' Monitoring & Alerting
+package "Monitoring & Observability" #689F38 {
+    rectangle "Application Monitoring\n- Health checks\n- Performance metrics\n- Error tracking" as app_monitoring #689F38
+    
+    rectangle "Infrastructure Monitoring\n- Resource usage\n- Node health\n- Network metrics" as infra_monitoring #689F38
+    
+    rectangle "Alerting\n- Slack notifications\n- Email alerts\n- PagerDuty (Critical)" as alerting #689F38
+}
+
+' Development Flow
+dev --> local : Code & Test Locally
+local --> feature_branch : Commit Changes
+feature_branch --> pr : Create Pull Request
+pr --> dev_branch : Merge After Review
+
+' CI Flow
+dev_branch --> ci_trigger : Push to Dev Branch
+main_branch --> ci_trigger : Push to Main Branch
+ci_trigger --> test_job : Run Tests
+test_job --> build_job : Tests Pass
+build_job --> ghcr : Push Images
+
+' CD Flow (Production)
+main_branch --> cd_trigger : Production Deploy
+cd_trigger --> update_manifests : Update K8s Manifests
+update_manifests --> deploy_k8s : Deploy to Cluster
+deploy_k8s --> verify_deploy : Verify Success
+verify_deploy --> prod_k8s : Update Production
+
+' Environment Promotion
+ghcr --> staging_k8s : Deploy to Staging
+ghcr --> prod_k8s : Deploy to Production
+
+' Monitoring Flow
+prod_services --> app_monitoring : Application Metrics
+prod_k8s --> infra_monitoring : Infrastructure Metrics
+app_monitoring --> alerting : Trigger Alerts
+infra_monitoring --> alerting : Trigger Alerts
+
+' Rollback Flow (if needed)
+note bottom of verify_deploy : Rollback Strategy:\n- Kubernetes rollout undo\n- Previous image version\n- Database backup restore
+
+' Pipeline Triggers
+note top of ci_trigger : Triggers:\n- Push to dev/*\n- Push to feature/*\n- Pull requests\n- Manual trigger
+
+note top of cd_trigger : Triggers:\n- Push to main branch\n- Manual deployment\n- Scheduled deployments
+
+@enduml

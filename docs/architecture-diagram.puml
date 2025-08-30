@@ -1,0 +1,95 @@
+@startuml DevOpsify E-Commerce Architecture
+
+title DevOpsify E-Commerce Application Architecture
+
+' Define colors
+!define PRIMARY #2196F3
+!define SECONDARY #FF9800  
+!define SUCCESS #4CAF50
+!define DANGER #F44336
+
+' User Layer
+actor User as user
+
+' Load Balancer / Ingress
+rectangle "Load Balancer\n(Kubernetes Ingress)" as lb PRIMARY
+
+' Frontend Layer
+package "Frontend Tier" #E3F2FD {
+    rectangle "React Frontend\n(devopsify-frontend)\nPort: 3000/80\nReplicas: 2" as frontend PRIMARY
+    rectangle "Nginx\n(Static Files + Proxy)" as nginx SECONDARY
+}
+
+' Backend Layer  
+package "Backend Tier" #E8F5E8 {
+    rectangle "Node.js Backend\n(devopsify-backend)\nPort: 5001\nReplicas: 2" as backend SUCCESS
+    rectangle "Express API\nHealth: /health" as api SUCCESS
+}
+
+' Database Layer
+package "Database Tier" #FFEBEE {
+    rectangle "MongoDB\n(devopsify-mongodb)\nPort: 27017\nReplicas: 1" as mongodb DANGER
+    rectangle "Persistent Volume\n(Database Storage)" as pv DANGER
+}
+
+' Container Registry
+package "Container Registry" #F3E5F5 {
+    rectangle "GitHub Container Registry\nghcr.io/senudajk/\n- devopsify-frontend\n- devopsify-backend" as registry #9C27B0
+}
+
+' CI/CD Pipeline
+package "CI/CD Pipeline" #FFF3E0 {
+    rectangle "GitHub Actions\n- CI: Build & Test\n- CD: Deploy to K8s" as cicd SECONDARY
+    rectangle "Source Code\n(GitHub Repository)" as github SECONDARY
+}
+
+' Kubernetes Infrastructure
+package "Kubernetes Cluster" #E1F5FE {
+    rectangle "Namespace: devopsify" as namespace #00BCD4
+    rectangle "Services:\n- frontend (LoadBalancer)\n- backend (ClusterIP)\n- mongodb (ClusterIP)" as services #00BCD4
+    rectangle "ConfigMaps & Secrets" as config #00BCD4
+}
+
+' Monitoring (Future)
+package "Monitoring (Future)" #F1F8E9 {
+    rectangle "Prometheus\n(Metrics Collection)" as prometheus #689F38
+    rectangle "Grafana\n(Dashboards)" as grafana #689F38
+}
+
+' User Flow
+user --> lb : HTTPS/HTTP
+lb --> frontend : Route to Frontend
+
+' Frontend to Backend
+frontend --> nginx : Serve Static Files
+nginx --> backend : API Calls (/api/*)
+backend --> api : Process Requests
+
+' Backend to Database
+api --> mongodb : Database Queries
+mongodb --> pv : Data Persistence
+
+' CI/CD Flow
+github --> cicd : Push Code
+cicd --> registry : Build & Push Images
+registry --> frontend : Pull Images
+registry --> backend : Pull Images
+
+' Kubernetes Orchestration
+cicd --> namespace : Deploy Manifests
+namespace --> services : Service Discovery
+services --> frontend : Route Traffic
+services --> backend : Internal Communication
+services --> mongodb : Database Connection
+
+' Monitoring Flow (Future)
+backend --> prometheus : Metrics Export
+frontend --> prometheus : Metrics Export
+prometheus --> grafana : Query Metrics
+
+' Network Labels
+note right of frontend : Frontend Network\n- External: 3000\n- Internal: 80\n- Protocol: HTTP
+note right of backend : Backend Network\n- Port: 5001\n- Protocol: HTTP\n- Health Check: /health
+note right of mongodb : Database Network\n- Port: 27017\n- Protocol: MongoDB Wire\n- Auth: admin/password123
+
+@enduml

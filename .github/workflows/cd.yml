@@ -20,12 +20,14 @@ jobs:
 
       - name: Configure Kubernetes context
         run: |
-          # This would typically configure your cluster context
-          # Example for different cloud providers:
-          # AWS: aws eks update-kubeconfig --name your-cluster-name
-          # GCP: gcloud container clusters get-credentials your-cluster-name
-          # Azure: az aks get-credentials --resource-group your-rg --name your-cluster-name
-          echo "Configure your cluster context here"
+          # Configure Azure AKS cluster context
+          # Install Azure CLI (already available in GitHub Actions)
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+          az aks get-credentials --resource-group devopsify-rg --name devopsify-aks --overwrite-existing
+          
+          # Verify connection
+          kubectl cluster-info
+          kubectl get nodes
 
       - name: Deploy to Kubernetes
         run: |
