@@ -11,6 +11,11 @@ on:
       - master
       - dev
 
+# ADD THIS PERMISSIONS BLOCK
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
