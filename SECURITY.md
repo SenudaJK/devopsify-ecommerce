@@ -1,0 +1,1 @@
+# Updated security scanning implementation
