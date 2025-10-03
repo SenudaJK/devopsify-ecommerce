@@ -31,31 +31,20 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: ghcr.io/senudajk/devopsify-frontend:latest
+        image: s3nudaj/devopsify-frontend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
         env:
         - name: REACT_APP_API_URL
-          value: "http://devopsify-backend-service.devopsify.svc.cluster.local:5001"
+          value: "http://devopsify-backend-service:5001"
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "250m"
+            cpu: 50m
+            memory: 128Mi
           limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 5
+            cpu: 200m
+            memory: 256Mi
 
 ---
 # Frontend Service - LoadBalancer for public access
@@ -97,39 +86,22 @@ spec:
     spec:
       containers:
       - name: backend
-        image: ghcr.io/senudajk/devopsify-backend:latest
+        image: s3nudaj/devopsify-backend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 5001
         env:
-        - name: NODE_ENV
-          value: "production"
+        - name: MONGODB_URI
+          value: "mongodb://devopsify-mongodb-service:27017/devopsify"
         - name: PORT
           value: "5001"
-        - name: MONGODB_URI
-          value: "mongodb://admin:password123@devopsify-mongodb-service.devopsify.svc.cluster.local:27017/devopsify?authSource=admin"
-        - name: CORS_ORIGIN
-          value: "*"
-        - name: JWT_SECRET
-          value: "devopsify-super-secret-jwt-key-change-in-production"
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            cpu: 100m
+            memory: 256Mi
           limits:
-            memory: "1Gi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 5001
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 5001
-          initialDelaySeconds: 10
-          periodSeconds: 5
+            cpu: 500m
+            memory: 512Mi
 
 ---
 # Backend Service - Internal ClusterIP
@@ -174,39 +146,16 @@ spec:
         image: mongo:7.0
         ports:
         - containerPort: 27017
-        env:
-        - name: MONGO_INITDB_ROOT_USERNAME
-          value: "admin"
-        - name: MONGO_INITDB_ROOT_PASSWORD
-          value: "password123"
-        - name: MONGO_INITDB_DATABASE
-          value: "devopsify"
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "250m"
+            cpu: 250m
+            memory: 512Mi
           limits:
-            memory: "1Gi"
-            cpu: "500m"
+            cpu: 500m
+            memory: 1Gi
         volumeMounts:
         - name: mongodb-storage
           mountPath: /data/db
-        livenessProbe:
-          exec:
-            command:
-            - mongosh
-            - --eval
-            - "db.adminCommand('ping')"
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          exec:
-            command:
-            - mongosh
-            - --eval
-            - "db.adminCommand('ping')"
-          initialDelaySeconds: 5
-          periodSeconds: 5
       volumes:
       - name: mongodb-storage
         emptyDir: {}
