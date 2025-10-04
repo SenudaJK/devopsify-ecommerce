@@ -1,0 +1,21 @@
+# Production - Higher replicas for high availability
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-backend
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-frontend
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-mongodb
+spec:
+  replicas: 1  # MongoDB typically runs as single instance

@@ -1,0 +1,38 @@
+# Backend API Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-backend
+  namespace: devopsify
+  labels:
+    app: devopsify-backend
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-backend
+  template:
+    metadata:
+      labels:
+        app: devopsify-backend
+        tier: backend
+    spec:
+      containers:
+      - name: backend
+        image: backend-image-placeholder  # Will be replaced by Kustomize
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5001
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://devopsify-mongodb-service:27017/devopsify"
+        - name: PORT
+          value: "5001"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

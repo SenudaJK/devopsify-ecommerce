@@ -1,0 +1,36 @@
+# Frontend React Application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-frontend
+  namespace: devopsify
+  labels:
+    app: devopsify-frontend
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-frontend
+  template:
+    metadata:
+      labels:
+        app: devopsify-frontend
+        tier: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: frontend-image-placeholder  # Will be replaced by Kustomize
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: REACT_APP_API_URL
+          value: "http://devopsify-backend-service:5001"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

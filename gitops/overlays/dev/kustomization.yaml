@@ -1,0 +1,23 @@
+# Development Environment Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Include the base configuration
+resources:
+- ../../base
+
+# Override namespace for dev
+namespace: devopsify-dev
+
+# Dev-specific image tags
+images:
+- name: s3nudaj/devopsify-backend
+  newTag: latest
+- name: s3nudaj/devopsify-frontend  
+  newTag: latest
+
+# Environment labels
+labels:
+- pairs:
+    environment: development
+    stage: dev

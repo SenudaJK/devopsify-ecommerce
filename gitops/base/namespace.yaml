@@ -1,0 +1,8 @@
+# Base Namespace Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopsify
+  labels:
+    name: devopsify
+    managed-by: gitops
