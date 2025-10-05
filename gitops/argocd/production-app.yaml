@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devopsify-production
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SenudaJK/devopsify-ecommerce
+    targetRevision: master  # Track main branch for production
+    path: gitops/base  # Use base configuration for production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devopsify  # Your existing production namespace
+  syncPolicy:
+    automated:
+      prune: false  # Don't auto-prune in production for safety
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=false  # Namespace already exists

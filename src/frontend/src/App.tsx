@@ -15,38 +15,130 @@ import SimpleProductGrid from './components/SimpleProductGrid';
 
 const theme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
     primary: {
-      main: '#2196F3',
+      main: '#6366f1',
+      light: '#818cf8',
+      dark: '#4f46e5',
     },
     secondary: {
-      main: '#9C27B0',
+      main: '#f59e0b',
+      light: '#fbbf24',
+      dark: '#d97706',
     },
+    background: {
+      default: '#0f172a',
+      paper: '#1e293b',
+    },
+    text: {
+      primary: '#f8fafc',
+      secondary: '#cbd5e1',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h1: {
+      fontWeight: 800,
+      letterSpacing: '-0.025em',
+    },
+    h2: {
+      fontWeight: 700,
+      letterSpacing: '-0.025em',
+    },
+  },
+  shape: {
+    borderRadius: 16,
   },
 });
 
 const sampleProducts = [
   {
     id: '1',
-    name: 'Premium Wireless Headphones',
-    price: 299.99,
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop',
-    description: 'High-quality wireless headphones with noise cancellation',
+    name: 'MacBook Pro 16" M3 Max',
+    price: 3499.99,
+    image: 'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=400&h=400&fit=crop',
+    description: 'Professional laptop with M3 Max chip, 32GB RAM, and stunning Liquid Retina XDR display',
     category: 'Electronics',
-    stock: 50,
-    rating: 4.8,
-    reviews: 1247
+    stock: 4,
+    rating: 4.9,
+    reviews: 2847
   },
   {
     id: '2',
-    name: 'Smart Fitness Watch',
-    price: 199.99,
-    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop',
-    description: 'Advanced fitness tracking with heart rate monitor',
+    name: 'iPhone 15 Pro Max',
+    price: 1199.99,
+    image: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop',
+    description: 'Latest iPhone with titanium design, advanced camera system, and A17 Pro chip',
     category: 'Electronics',
-    stock: 30,
+    stock: 12,
+    rating: 4.8,
+    reviews: 5692
+  },
+  {
+    id: '3',
+    name: 'PlayStation 5 Console',
+    price: 499.99,
+    image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400&h=400&fit=crop',
+    description: 'Next-gen gaming console with 4K gaming, ray tracing, and ultra-fast SSD',
+    category: 'Gaming',
+    stock: 8,
+    rating: 4.7,
+    reviews: 3421
+  },
+  {
+    id: '4',
+    name: 'AirPods Pro (3rd Gen)',
+    price: 249.99,
+    image: 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=400&h=400&fit=crop',
+    description: 'Premium wireless earbuds with active noise cancellation and spatial audio',
+    category: 'Electronics',
+    stock: 25,
     rating: 4.6,
+    reviews: 1829
+  },
+  {
+    id: '5',
+    name: 'Tesla Model Y Performance',
+    price: 69990.00,
+    image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=400&h=400&fit=crop',
+    description: 'All-electric SUV with dual motor AWD, autopilot, and premium interior',
+    category: 'Automotive',
+    stock: 2,
+    rating: 4.9,
     reviews: 892
+  },
+  {
+    id: '6',
+    name: 'Canon EOS R6 Mark II',
+    price: 2499.99,
+    image: 'https://images.unsplash.com/photo-1606983340126-99ab4feaa64a?w=400&h=400&fit=crop',
+    description: 'Professional mirrorless camera with 24.2MP sensor and advanced autofocus',
+    category: 'Photography',
+    stock: 6,
+    rating: 4.8,
+    reviews: 1243
+  },
+  {
+    id: '7',
+    name: 'Nike Air Jordan 1 Retro',
+    price: 170.00,
+    image: 'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=400&h=400&fit=crop',
+    description: 'Iconic basketball shoes with classic design and premium leather construction',
+    category: 'Fashion',
+    stock: 15,
+    rating: 4.5,
+    reviews: 2156
+  },
+  {
+    id: '8',
+    name: 'DJI Mini 4 Pro Drone',
+    price: 759.99,
+    image: 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&h=400&fit=crop',
+    description: 'Compact drone with 4K HDR video, intelligent flight modes, and 34-minute flight time',
+    category: 'Electronics',
+    stock: 3,
+    rating: 4.7,
+    reviews: 967
   }
 ];
 
@@ -150,23 +242,73 @@ function App() {
                 path="/" 
                 element={
                   <Box>
-                    <Box textAlign="center" py={6} mb={4}>
+                    <Box 
+                      textAlign="center" 
+                      py={8} 
+                      mb={6}
+                      sx={{
+                        position: 'relative',
+                        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        borderRadius: 4,
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                          zIndex: -1,
+                        }
+                      }}
+                    >
                       <Typography 
-                        variant="h2" 
+                        variant="h1" 
                         component="h1" 
                         gutterBottom
                         sx={{
-                          background: 'linear-gradient(45deg, #2196F3 30%, #9C27B0 90%)',
+                          background: 'linear-gradient(135deg, #6366f1 0%, #f59e0b 50%, #ec4899 100%)',
                           backgroundClip: 'text',
                           WebkitBackgroundClip: 'text',
                           color: 'transparent',
-                          fontWeight: 'bold'
+                          fontWeight: 800,
+                          fontSize: { xs: '2.5rem', md: '4rem' },
+                          lineHeight: 1.1,
+                          textShadow: '0 0 40px rgba(99, 102, 241, 0.3)',
                         }}
                       >
-                        Welcome to DevOpsify - GitOps Enabled!
+                        DevOpsify Store
                       </Typography>
-                      <Typography variant="h5" color="text.secondary">
-                        Discover amazing products
+                      <Typography 
+                        variant="h4" 
+                        sx={{
+                          background: 'linear-gradient(135deg, #f59e0b 0%, #ec4899 100%)',
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          fontWeight: 600,
+                          mb: 2,
+                          fontSize: { xs: '1.25rem', md: '2rem' }
+                        }}
+                      >
+                        GitOps Enabled Commerce
+                      </Typography>
+                      <Typography 
+                        variant="h6" 
+                        color="text.secondary"
+                        sx={{
+                          maxWidth: 600,
+                          mx: 'auto',
+                          opacity: 0.9,
+                          fontWeight: 400,
+                          lineHeight: 1.6
+                        }}
+                      >
+                        Experience the future of e-commerce with cutting-edge technology and modern design
                       </Typography>
                     </Box>
 
