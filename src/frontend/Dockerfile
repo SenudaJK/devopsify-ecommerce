@@ -7,7 +7,7 @@ WORKDIR /app
 # Set environment variables for build
 ENV NODE_ENV=production
 ENV GENERATE_SOURCEMAP=false
-ENV CI=true
+ENV CI=false
 
 # Copy package files
 COPY package*.json ./
