@@ -1,33 +1,35 @@
-# Multi-stage build for production optimization
-FROM node:18-alpine AS builder
+# Use Node.js base image for building
+FROM node:18-alpine as build
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --silent
 
-# Copy source code
+# Copy app source
 COPY . .
 
-# Build the application
+# Build the app
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine AS production
+# Use nginx for serving the app
+FROM nginx:alpine
 
-# Copy custom nginx config
+# Copy the built app to nginx
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built app from builder stage
-COPY --from=builder /app/build /usr/share/nginx/html
+# Expose port 80
+EXPOSE 80
 
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:80/ || exit 1
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
 
 # Expose port
 EXPOSE 80
