@@ -11,7 +11,6 @@ import {
 } from '@mui/material';
 import { 
   ShoppingCart, 
-  AccountCircle, 
   Store, 
   Search,
   Notifications

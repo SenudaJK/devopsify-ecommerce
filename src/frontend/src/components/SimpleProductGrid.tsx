@@ -16,7 +16,6 @@ import {
   IconButton,
   CardActions,
   Fade,
-  useTheme,
   Paper
 } from '@mui/material';
 import { 
@@ -24,7 +23,6 @@ import {
   Favorite, 
   FavoriteBorder,
   LocalOffer,
-  Star,
   TrendingUp
 } from '@mui/icons-material';
 
@@ -51,7 +49,6 @@ const SimpleProductGrid: React.FC<SimpleProductGridProps> = ({
   onAddToCart,
   loading = false
 }) => {
-  const theme = useTheme();
   const [sortBy, setSortBy] = useState('name');
   const [filterCategory, setFilterCategory] = useState('all');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
