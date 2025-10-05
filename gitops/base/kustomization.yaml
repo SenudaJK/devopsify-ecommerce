@@ -18,6 +18,17 @@ commonLabels:
   app.kubernetes.io/part-of: devopsify-ecommerce
   managed-by: kustomize
 
+# Image replacements
+images:
+- name: frontend-image-placeholder
+  newName: s3nudaj/devopsify-frontend
+  newTag: latest
+- name: backend-image-placeholder
+  newName: s3nudaj/devopsify-backend
+  newTag: latest
+- name: mongo
+  newTag: 6.0
+
 # Image transformations (placeholder to actual images)
 images:
 - name: backend-image-placeholder
