@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { Box, Container, Typography, Button } from '@mui/material';
 
 // Import existing components
-import ProductList from './components/ProductList';
 import Cart from './components/Cart';
 import Login from './components/Login';
 
