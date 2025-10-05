@@ -163,7 +163,7 @@ function App() {
                           fontWeight: 'bold'
                         }}
                       >
-                        Welcome to DevOpsify
+                        Welcome to DevOpsify - GitOps Enabled!
                       </Typography>
                       <Typography variant="h5" color="text.secondary">
                         Discover amazing products
