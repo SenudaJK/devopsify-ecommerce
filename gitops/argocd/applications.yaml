@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/SenudaJK/devopsify-ecommerce.git
+    repoURL: https://github.com/SenudaJK/devopsify-ecommerce
     targetRevision: dev  # Track the dev branch
     path: gitops/overlays/dev
   destination:
@@ -27,7 +27,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/SenudaJK/devopsify-ecommerce.git
+    repoURL: https://github.com/SenudaJK/devopsify-ecommerce
     targetRevision: dev  # Track dev branch for staging
     path: gitops/overlays/staging
   destination:
