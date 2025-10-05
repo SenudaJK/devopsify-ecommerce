@@ -1,13 +1,22 @@
-# Kubernetes Manifests for DevOpsify E-Commerce App
+# DevOpsify E-Commerce - Complete Kubernetes Manifests
+# Ready-to-deploy manifests for Azure AKS with MongoDB, Node.js backend, and React frontend
 
-This directory will contain the necessary Kubernetes manifest files to deploy the frontend, backend, and database components of the e-commerce application. Below are the sample contents for the Kubernetes manifests.
+---
+# Namespace - Organization for all DevOpsify resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopsify
+  labels:
+    name: devopsify
 
-### 1. frontend-deployment.yaml
-
+---
+# Frontend Deployment - React Application with Nginx
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend
+  name: devopsify-frontend
+  namespace: devopsify
   labels:
     app: devopsify-frontend
 spec:
@@ -22,37 +31,47 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: <your-dockerhub-username>/devopsify-frontend:latest
+        image: s3nudaj/devopsify-frontend:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 3000
+        - containerPort: 80
         env:
-        - name: API_URL
-          value: "http://backend:5000"
+        - name: REACT_APP_API_URL
+          value: "http://devopsify-backend-service:5001"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
 
 ---
-
-### 2. frontend-service.yaml
-
+# Frontend Service - LoadBalancer for public access
 apiVersion: v1
 kind: Service
 metadata:
-  name: frontend
+  name: devopsify-frontend-service
+  namespace: devopsify
+  labels:
+    app: devopsify-frontend
 spec:
   type: LoadBalancer
   ports:
   - port: 80
-    targetPort: 3000
+    targetPort: 80
+    protocol: TCP
+    name: http
   selector:
     app: devopsify-frontend
 
 ---
-
-### 3. backend-deployment.yaml
-
+# Backend Deployment - Node.js API Server
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: backend
+  name: devopsify-backend
+  namespace: devopsify
   labels:
     app: devopsify-backend
 spec:
@@ -67,117 +86,173 @@ spec:
     spec:
       containers:
       - name: backend
-        image: <your-dockerhub-username>/devopsify-backend:latest
+        image: s3nudaj/devopsify-backend:latest
+        imagePullPolicy: Always
         ports:
-        - containerPort: 5000
+        - containerPort: 5001
         env:
-        - name: DATABASE_URL
-          value: "postgres://<username>:<password>@postgresql:5432/devopsify"
+        - name: MONGODB_URI
+          value: "mongodb://devopsify-mongodb-service:27017/devopsify"
+        - name: PORT
+          value: "5001"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
 
 ---
-
-### 4. backend-service.yaml
-
+# Backend Service - Internal ClusterIP
 apiVersion: v1
 kind: Service
 metadata:
-  name: backend
+  name: devopsify-backend-service
+  namespace: devopsify
+  labels:
+    app: devopsify-backend
 spec:
+  type: ClusterIP
   ports:
-  - port: 5000
-    targetPort: 5000
+  - port: 5001
+    targetPort: 5001
+    protocol: TCP
+    name: http
   selector:
     app: devopsify-backend
 
 ---
-
-### 5. postgresql-deployment.yaml
-
+# MongoDB Deployment - Database Server
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgresql
+  name: devopsify-mongodb
+  namespace: devopsify
   labels:
-    app: devopsify-postgresql
+    app: devopsify-mongodb
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: devopsify-postgresql
+      app: devopsify-mongodb
   template:
     metadata:
       labels:
-        app: devopsify-postgresql
+        app: devopsify-mongodb
     spec:
       containers:
-      - name: postgresql
-        image: postgres:latest
+      - name: mongodb
+        image: mongo:7.0
         ports:
-        - containerPort: 5432
-        env:
-        - name: POSTGRES_USER
-          value: "<username>"
-        - name: POSTGRES_PASSWORD
-          value: "<password>"
-        - name: POSTGRES_DB
-          value: "devopsify"
+        - containerPort: 27017
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - name: mongodb-storage
+          mountPath: /data/db
+      volumes:
+      - name: mongodb-storage
+        emptyDir: {}
 
 ---
-
-### 6. postgresql-service.yaml
-
+# MongoDB Service - Internal ClusterIP
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgresql
-spec:
-  ports:
-  - port: 5432
-    targetPort: 5432
-  selector:
-    app: devopsify-postgresql
-
----
-
-### 7. redis-deployment.yaml (Optional)
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis
+  name: devopsify-mongodb-service
+  namespace: devopsify
   labels:
-    app: devopsify-redis
+    app: devopsify-mongodb
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: devopsify-redis
-  template:
-    metadata:
-      labels:
-        app: devopsify-redis
-    spec:
-      containers:
-      - name: redis
-        image: redis:latest
-        ports:
-        - containerPort: 6379
-
----
-
-### 8. redis-service.yaml (Optional)
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-spec:
+  type: ClusterIP
   ports:
-  - port: 6379
-    targetPort: 6379
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+    name: mongodb
   selector:
-    app: devopsify-redis
+    app: devopsify-mongodb
 
 ---
+# ConfigMap for MongoDB initialization (optional)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-init-script
+  namespace: devopsify
+data:
+  init-mongo.js: |
+    // Initialize MongoDB with sample data
+    db = db.getSiblingDB('devopsify');
+    
+    // Create collections
+    db.createCollection('products');
+    db.createCollection('users');
+    db.createCollection('orders');
+    
+    // Insert sample products
+    db.products.insertMany([
+      {
+        name: "Laptop Pro",
+        description: "High-performance laptop for professionals",
+        price: 1299.99,
+        category: "Electronics",
+        stock: 50,
+        imageUrl: "/images/laptop-pro.jpg",
+        createdAt: new Date()
+      },
+      {
+        name: "Wireless Headphones",
+        description: "Premium noise-cancelling headphones",
+        price: 199.99,
+        category: "Electronics",
+        stock: 100,
+        imageUrl: "/images/headphones.jpg",
+        createdAt: new Date()
+      },
+      {
+        name: "Smart Watch",
+        description: "Fitness tracking smartwatch",
+        price: 299.99,
+        category: "Electronics",
+        stock: 75,
+        imageUrl: "/images/smartwatch.jpg",
+        createdAt: new Date()
+      }
+    ]);
+    
+    print('MongoDB initialized with sample data');
 
-These manifest files will allow you to deploy the frontend, backend, PostgreSQL, and optionally Redis services to your Kubernetes cluster. Make sure to replace `<your-dockerhub-username>`, `<username>`, and `<password>` with your actual values.
+---
+# Horizontal Pod Autoscaler for Backend (optional)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: devopsify-backend-hpa
+  namespace: devopsify
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: devopsify-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

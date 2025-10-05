@@ -1,0 +1,8 @@
+# Development Namespace Override
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopsify-dev
+  labels:
+    name: devopsify-dev
+    environment: development

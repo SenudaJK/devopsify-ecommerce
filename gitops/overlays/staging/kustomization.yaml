@@ -1,0 +1,39 @@
+# Staging Environment Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Include the base configuration
+resources:
+- ../../base
+
+# Override namespace for staging
+namespace: devopsify-staging
+
+# Staging-specific image tags
+images:
+- name: s3nudaj/devopsify-backend
+  newTag: latest
+- name: s3nudaj/devopsify-frontend  
+  newTag: latest
+
+# Environment labels
+labels:
+- pairs:
+    environment: staging
+    stage: staging
+
+# Staging-specific patches
+patchesStrategicMerge:
+- namespace-patch.yaml
+
+# Resource limits for staging
+patchesJson6902:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: devopsify-frontend
+  patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1

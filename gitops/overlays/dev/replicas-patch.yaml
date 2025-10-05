@@ -1,0 +1,24 @@
+# Development - Lower replicas for resource saving
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-backend
+  namespace: devopsify-dev
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-frontend
+  namespace: devopsify-dev
+spec:
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-mongodb
+  namespace: devopsify-dev
+spec:
+  replicas: 1

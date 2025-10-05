@@ -1,0 +1,199 @@
+# DevOpsify E-Commerce - Simple Kubernetes Manifests
+# Simplified version without HPA for initial testing
+
+---
+# Namespace - Organization for all DevOpsify resources
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopsify
+  labels:
+    name: devopsify
+
+---
+# MongoDB Deployment - Database Server (Deploy First)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-mongodb
+  namespace: devopsify
+  labels:
+    app: devopsify-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-mongodb
+  template:
+    metadata:
+      labels:
+        app: devopsify-mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo:7.0
+        ports:
+        - containerPort: 27017
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 300m
+            memory: 512Mi
+        volumeMounts:
+        - name: mongodb-storage
+          mountPath: /data/db
+      volumes:
+      - name: mongodb-storage
+        emptyDir: {}
+
+---
+# MongoDB Service - Internal ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopsify-mongodb-service
+  namespace: devopsify
+  labels:
+    app: devopsify-mongodb
+spec:
+  type: ClusterIP
+  ports:
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+    name: mongodb
+  selector:
+    app: devopsify-mongodb
+
+---
+# Backend Deployment - Node.js API Server
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-backend
+  namespace: devopsify
+  labels:
+    app: devopsify-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-backend
+  template:
+    metadata:
+      labels:
+        app: devopsify-backend
+    spec:
+      containers:
+      - name: backend
+        image: s3nudaj/devopsify-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5001
+        env:
+        - name: MONGODB_URI
+          value: "mongodb://devopsify-mongodb-service:27017/devopsify"
+        - name: PORT
+          value: "5001"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+---
+# Backend Service - Internal ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopsify-backend-service
+  namespace: devopsify
+  labels:
+    app: devopsify-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5001
+    targetPort: 5001
+    protocol: TCP
+    name: http
+  selector:
+    app: devopsify-backend
+
+---
+# Frontend Deployment - React Application with Nginx
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devopsify-frontend
+  namespace: devopsify
+  labels:
+    app: devopsify-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devopsify-frontend
+  template:
+    metadata:
+      labels:
+        app: devopsify-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: s3nudaj/devopsify-frontend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+        - name: REACT_APP_API_URL
+          value: "http://devopsify-backend-service:5001"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+
+---
+# Backend Service Alias - For nginx proxy compatibility
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: devopsify
+  labels:
+    app: devopsify-backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5001
+    targetPort: 5001
+    protocol: TCP
+    name: http
+  selector:
+    app: devopsify-backend
+
+---
+# Frontend Service - LoadBalancer for public access
+apiVersion: v1
+kind: Service
+metadata:
+  name: devopsify-frontend-service
+  namespace: devopsify
+  labels:
+    app: devopsify-frontend
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: devopsify-frontend

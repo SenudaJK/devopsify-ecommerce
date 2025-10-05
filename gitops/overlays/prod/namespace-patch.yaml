@@ -1,0 +1,8 @@
+# Production Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devopsify-prod
+  labels:
+    name: devopsify-prod
+    environment: production

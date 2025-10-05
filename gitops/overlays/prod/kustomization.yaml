@@ -1,0 +1,28 @@
+# Production Environment Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Include the base configuration
+resources:
+- ../../base
+
+# Override namespace for production
+namespace: devopsify-prod
+
+# Production-specific patches
+patchesStrategicMerge:
+- replicas-patch.yaml
+- resources-patch.yaml
+
+# Production-specific image tags (use specific versions, not latest)
+images:
+- name: s3nudaj/devopsify-backend
+  newTag: v1.0.0
+- name: s3nudaj/devopsify-frontend  
+  newTag: v1.0.0
+
+# Environment labels
+labels:
+- pairs:
+    environment: production
+    stage: prod
