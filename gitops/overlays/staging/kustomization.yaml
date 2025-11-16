@@ -5,29 +5,51 @@ kind: Kustomization
 # Include the base configuration
 resources:
 - ../../base
+- namespace-patch.yaml
 
 # Override namespace for staging
 namespace: devopsify-staging
 
-# Staging-specific image tags
+# Staging-specific image tags (use release candidates or master builds)
 images:
-- name: s3nudaj/devopsify-backend
-  newTag: latest
-- name: s3nudaj/devopsify-frontend  
-  newTag: latest
+- name: ghcr.io/senudajk/devopsify-backend
+  newTag: staging
+- name: ghcr.io/senudajk/devopsify-frontend
+  newTag: staging
+
+# Common labels for staging resources
+commonLabels:
+  environment: staging
+  stage: staging
+  managed-by: argocd
 
 # Environment labels
 labels:
 - pairs:
     environment: staging
     stage: staging
+  includeSelectors: false
 
-# Staging-specific patches
-patchesStrategicMerge:
-- namespace-patch.yaml
+# Patches for staging environment
+patches:
+- path: replicas-patch.yaml
+  target:
+    kind: Deployment
 
-# Resource limits for staging
-patchesJson6902:
+# ConfigMap generator for staging configs
+configMapGenerator:
+- name: app-config
+  literals:
+  - NODE_ENV=staging
+  - LOG_LEVEL=info
+  - ENABLE_DEBUG=false
+
+# Staging replicas (mirrors production but smaller scale)
+replicas:
+- name: devopsify-backend
+  count: 2
+- name: devopsify-frontend
+  count: 2
 - target:
     group: apps
     version: v1
