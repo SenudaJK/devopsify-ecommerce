@@ -15,6 +15,8 @@ spec:
       labels:
         app: devopsify-backend
     spec:
+      imagePullSecrets:
+      - name: ghcr-secret
       containers:
       - name: backend
         image: ghcr.io/senudajk/devopsify-backend:latest
@@ -25,15 +27,30 @@ spec:
           value: "production"
         - name: PORT
           value: "5001"
+        - name: MONGODB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: username
+        - name: MONGODB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: password
         - name: MONGODB_URI
-          value: "mongodb://admin:password123@devopsify-mongodb:27017/devopsify?authSource=admin"
+          value: "mongodb://$(MONGODB_USERNAME):$(MONGODB_PASSWORD)@devopsify-mongodb-service:27017/devopsify?authSource=admin"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
         resources:
           requests:
-            memory: "256Mi"
-            cpu: "250m"
+            memory: "128Mi"
+            cpu: "100m"
           limits:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "200m"
         livenessProbe:
           httpGet:
             path: /health
@@ -51,11 +68,17 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: devopsify-backend
+  name: devopsify-backend-service
   namespace: devopsify
+  labels:
+    app: devopsify-backend
+    tier: backend
 spec:
+  type: ClusterIP
   ports:
   - port: 5001
     targetPort: 5001
+    protocol: TCP
+    name: http
   selector:
     app: devopsify-backend
