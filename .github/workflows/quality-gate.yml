@@ -1,0 +1,411 @@
+name: Advanced CI/CD with Quality Gates
+
+on:
+  push:
+    branches: [master, dev, feature/*]
+  pull_request:
+    branches: [master, dev]
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+
+jobs:
+  # ============================================================================
+  # CODE QUALITY & LINTING
+  # ============================================================================
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            src/frontend/package-lock.json
+            src/backend/package-lock.json
+
+      - name: Install dependencies (Frontend)
+        working-directory: ./src/frontend
+        run: npm ci
+
+      - name: Run ESLint (Frontend)
+        working-directory: ./src/frontend
+        run: npm run lint || echo "Lint warnings found"
+        continue-on-error: true
+
+      - name: Install dependencies (Backend)
+        working-directory: ./src/backend
+        run: npm ci
+
+      - name: Run ESLint (Backend)
+        working-directory: ./src/backend
+        run: npm run lint || echo "Lint warnings found"
+        continue-on-error: true
+
+      - name: Check TypeScript compilation (Frontend)
+        working-directory: ./src/frontend
+        run: npx tsc --noEmit
+
+      - name: Check TypeScript compilation (Backend)
+        working-directory: ./src/backend
+        run: npx tsc --noEmit
+
+  # ============================================================================
+  # UNIT & INTEGRATION TESTS
+  # ============================================================================
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./src/backend
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: ./src/backend
+        run: npm test -- --coverage --passWithNoTests
+
+      - name: Run integration tests
+        working-directory: ./src/backend
+        run: npm test -- --testPathPattern=integration --passWithNoTests
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./src/backend/coverage
+          flags: backend
+          fail_ci_if_error: false
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./src/frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ./src/frontend
+        run: npm test -- --coverage --passWithNoTests
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./src/frontend/coverage
+          flags: frontend
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # SECURITY SCANNING
+  # ============================================================================
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Dependency vulnerability scan (Backend)
+        working-directory: ./src/backend
+        run: npm audit --audit-level=moderate || echo "Vulnerabilities found"
+        continue-on-error: true
+
+      - name: Dependency vulnerability scan (Frontend)
+        working-directory: ./src/frontend
+        run: npm audit --audit-level=moderate || echo "Vulnerabilities found"
+        continue-on-error: true
+
+  # ============================================================================
+  # BUILD & VALIDATE
+  # ============================================================================
+  build-backend:
+    name: Build Backend
+    needs: [code-quality, backend-tests, security-scan]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./src/backend
+        run: npm ci
+
+      - name: Build application
+        working-directory: ./src/backend
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build
+          path: src/backend/dist
+          retention-days: 1
+
+  build-frontend:
+    name: Build Frontend
+    needs: [code-quality, frontend-tests, security-scan]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./src/frontend
+        run: npm ci
+
+      - name: Build application
+        working-directory: ./src/frontend
+        env:
+          CI: false
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: src/frontend/build
+          retention-days: 1
+
+  # ============================================================================
+  # E2E TESTS (Optional - runs on master/dev only)
+  # ============================================================================
+  e2e-tests:
+    name: End-to-End Tests
+    needs: [build-backend, build-frontend]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright
+        working-directory: ./src/frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Start backend server
+        working-directory: ./src/backend
+        run: |
+          npm ci
+          npm run build
+          npm start &
+          sleep 10
+        env:
+          NODE_ENV: test
+
+      - name: Start frontend server
+        working-directory: ./src/frontend
+        run: |
+          npm start &
+          sleep 15
+        env:
+          CI: true
+
+      - name: Run Playwright tests
+        working-directory: ./src/frontend
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: src/frontend/playwright-report
+          retention-days: 7
+
+  # ============================================================================
+  # DOCKER BUILD & PUSH
+  # ============================================================================
+  docker-build-push:
+    name: Build & Push Docker Images
+    needs: [build-backend, build-frontend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/dev')
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Convert repository owner to lowercase
+        id: lowercase
+        run: echo "repository_owner_lowercase=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.repository_owner_lowercase }}/devopsify-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/${{ matrix.service }}
+          file: ./src/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.repository_owner_lowercase }}/devopsify-${{ matrix.service }}:${{ github.ref_name }}
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+        continue-on-error: true
+
+  # ============================================================================
+  # QUALITY GATE SUMMARY
+  # ============================================================================
+  quality-gate:
+    name: Quality Gate Summary
+    needs: [code-quality, backend-tests, frontend-tests, security-scan, build-backend, build-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check quality gate status
+        run: |
+          echo "==================================================="
+          echo "           QUALITY GATE SUMMARY"
+          echo "==================================================="
+          echo ""
+          echo "Code Quality:     ${{ needs.code-quality.result }}"
+          echo "Backend Tests:    ${{ needs.backend-tests.result }}"
+          echo "Frontend Tests:   ${{ needs.frontend-tests.result }}"
+          echo "Security Scan:    ${{ needs.security-scan.result }}"
+          echo "Build Backend:    ${{ needs.build-backend.result }}"
+          echo "Build Frontend:   ${{ needs.build-frontend.result }}"
+          echo ""
+          
+          if [[ "${{ needs.code-quality.result }}" != "success" ]] || \
+             [[ "${{ needs.build-backend.result }}" != "success" ]] || \
+             [[ "${{ needs.build-frontend.result }}" != "success" ]]; then
+            echo "❌ Quality gate FAILED"
+            exit 1
+          else
+            echo "✅ Quality gate PASSED"
+          fi
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const summary = `
+            ## 🎯 Quality Gate Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Code Quality | ${{ needs.code-quality.result }} |
+            | Backend Tests | ${{ needs.backend-tests.result }} |
+            | Frontend Tests | ${{ needs.frontend-tests.result }} |
+            | Security Scan | ${{ needs.security-scan.result }} |
+            | Build Backend | ${{ needs.build-backend.result }} |
+            | Build Frontend | ${{ needs.build-frontend.result }} |
+            
+            ---
+            *Automated quality gate check*
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });

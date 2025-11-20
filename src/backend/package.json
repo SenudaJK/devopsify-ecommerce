@@ -10,9 +10,12 @@
     "build": "tsc",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:coverage": "jest --coverage",
+    "test:all": "jest --coverage --verbose",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write src/**/*.ts",
-    "test:coverage": "jest --coverage"
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
