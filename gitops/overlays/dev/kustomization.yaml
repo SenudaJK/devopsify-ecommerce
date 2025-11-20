@@ -5,19 +5,48 @@ kind: Kustomization
 # Include the base configuration
 resources:
 - ../../base
+- namespace-patch.yaml
 
 # Override namespace for dev
 namespace: devopsify-dev
 
-# Dev-specific image tags
+# Dev-specific image tags (use dev or latest tags)
 images:
-- name: s3nudaj/devopsify-backend
-  newTag: latest
-- name: s3nudaj/devopsify-frontend  
-  newTag: latest
+- name: ghcr.io/senudajk/devopsify-backend
+  newTag: dev
+- name: ghcr.io/senudajk/devopsify-frontend
+  newTag: dev
 
-# Environment labels
+# Common labels for all resources
+commonLabels:
+  environment: development
+  stage: dev
+  managed-by: argocd
+
+# Additional labels
 labels:
 - pairs:
     environment: development
     stage: dev
+  includeSelectors: false
+
+# Patches for dev environment
+patches:
+- path: replicas-patch.yaml
+  target:
+    kind: Deployment
+    
+# ConfigMap generator for dev-specific configs
+configMapGenerator:
+- name: app-config
+  literals:
+  - NODE_ENV=development
+  - LOG_LEVEL=debug
+  - ENABLE_DEBUG=true
+
+# Add resource limits suitable for dev
+replicas:
+- name: devopsify-backend
+  count: 1
+- name: devopsify-frontend
+  count: 1

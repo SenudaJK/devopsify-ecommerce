@@ -3,18 +3,29 @@ kind: AppProject
 metadata:
   name: devopsify-project
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: devopsify-project
 spec:
-  description: DevOpsify E-commerce Application Project
+  description: DevOpsify E-commerce Application Project with GitOps
   
   # Source repositories that apps in this project can pull from
   sourceRepos:
   - 'https://github.com/SenudaJK/devopsify-ecommerce.git'
+  - '*'  # Allow all helm repos
   
   # Destination clusters and namespaces that apps in this project can deploy to
   destinations:
   - namespace: 'devopsify-*'
     server: https://kubernetes.default.svc
   - namespace: 'devopsify'
+    server: https://kubernetes.default.svc
+  - namespace: 'devopsify-dev'
+    server: https://kubernetes.default.svc
+  - namespace: 'devopsify-staging'
+    server: https://kubernetes.default.svc
+  - namespace: 'devopsify-prod'
+    server: https://kubernetes.default.svc
+  - namespace: 'monitoring'
     server: https://kubernetes.default.svc
   
   # Roles and policies for this project
@@ -26,6 +37,14 @@ spec:
     - p, proj:devopsify-project:admin, logs, get, devopsify-project/*, allow
     - p, proj:devopsify-project:admin, exec, create, devopsify-project/*, allow
   
+  - name: developer
+    description: Developer access - read-only on prod
+    policies:
+    - p, proj:devopsify-project:developer, applications, get, devopsify-project/*, allow
+    - p, proj:devopsify-project:developer, applications, sync, devopsify-project/dev-*, allow
+    - p, proj:devopsify-project:developer, applications, sync, devopsify-project/staging-*, allow
+    - p, proj:devopsify-project:developer, logs, get, devopsify-project/*, allow
+  
   # Cluster resource allow list
   clusterResourceWhitelist:
   - group: ''
@@ -34,3 +53,15 @@ spec:
     kind: ClusterRole
   - group: 'rbac.authorization.k8s.io'
     kind: ClusterRoleBinding
+  
+  # Namespace resource allow list
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  
+  # Deny certain resources for safety
+  namespaceResourceBlacklist:
+  - group: ''
+    kind: ResourceQuota
+  - group: ''
+    kind: LimitRange
